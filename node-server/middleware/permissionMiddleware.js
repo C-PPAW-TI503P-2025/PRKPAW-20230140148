@@ -3,7 +3,7 @@ console.log('Middleware: Menambahkan data user dummy...');
 req.user = {
 id: 123,
 nama: 'User Karyawan',
-role: 'karyawan' // <-- Perhatikan ini, nanti kita ubah untuk tes admin
+role: 'admin' // <-- Perhatikan ini, nanti kita ubah untuk tes admin
 };
 next();
 };
