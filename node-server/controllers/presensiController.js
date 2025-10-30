@@ -1,6 +1,7 @@
 // 1. Ganti sumber data dari array ke model Sequelize
 const { Presensi } = require("../models");
 const { format } = require("date-fns-tz");
+const { validationResult } = require('express-validator');
 const timeZone = "Asia/Jakarta";
 
 exports.CheckIn = async (req, res) => {
@@ -107,7 +108,7 @@ exports.deletePresensi = async (req, res) => {
     if (!recordToDelete) {
       return res
         .status(404)
-        .json({ message: "Catatan presensi tidak ditemukan." });
+        .json({ message: "Data Presensi Telah Dihapus." });
     }
     if (recordToDelete.userId !== userId) {
       return res
@@ -124,6 +125,17 @@ exports.deletePresensi = async (req, res) => {
 };
 
 exports.updatePresensi = async (req, res) => {
+  // --- BLOK VALIDASI BARU ---
+  // Cek hasil validasi yang dijalankan di file rute
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({
+      message: "Data yang dikirim tidak valid.",
+      errors: errors.array(), // Tampilkan detail errornya
+    });
+  }
+  // --- AKHIR BLOK VALIDASI BARU ---
+
   try {
     const presensiId = req.params.id;
     const { checkIn, checkOut, nama } = req.body;
