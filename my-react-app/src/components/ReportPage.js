@@ -8,11 +8,12 @@ const ReportPage = () => {
     const fetchData = async () => {
       try {
         const token = localStorage.getItem('token');
-        // Pastikan endpoint ini ada di backend Anda
-        const response = await axios.get('http://localhost:3000/api/presensi', {
+        // Pastikan URL endpoint backend benar
+        const response = await axios.get('http://localhost:3001/api/presensi/report', { 
           headers: { Authorization: `Bearer ${token}` }
         });
-        // Sesuaikan dengan struktur response backend Anda (misal response.data.data)
+        
+        console.log("Data diterima:", response.data); // Debugging: Cek console browser
         setDataPresensi(response.data.data || []); 
       } catch (error) {
         console.error("Gagal mengambil data report", error);
@@ -28,7 +29,8 @@ const ReportPage = () => {
         <table className="min-w-full bg-white">
           <thead className="bg-gray-800 text-white">
             <tr>
-              <th className="py-3 px-4 text-left">User ID</th>
+              {/* 1. Ganti Header Kolom */}
+              <th className="py-3 px-4 text-left">Nama User</th>
               <th className="py-3 px-4 text-left">Waktu Masuk</th>
               <th className="py-3 px-4 text-left">Waktu Keluar</th>
               <th className="py-3 px-4 text-left">Lokasi (Lat, Long)</th>
@@ -37,7 +39,13 @@ const ReportPage = () => {
           <tbody>
             {dataPresensi.map((item, index) => (
               <tr key={index} className="border-b hover:bg-gray-100">
-                <td className="py-3 px-4">{item.userId}</td>
+                
+                {/* 2. Ganti pemanggilan data: Dari ID ke Nama */}
+                {/* Kita pakai optional chaining (?.) untuk jaga-jaga kalau data user null */}
+                <td className="py-3 px-4 font-medium">
+                    {item.user ? item.user.nama : `User ID: ${item.userId}`}
+                </td>
+
                 <td className="py-3 px-4">{new Date(item.checkIn).toLocaleString()}</td>
                 <td className="py-3 px-4">
                   {item.checkOut ? new Date(item.checkOut).toLocaleString() : '-'}
@@ -45,10 +53,11 @@ const ReportPage = () => {
                 <td className="py-3 px-4">
                   {item.latitude && item.longitude ? (
                     <a 
+                      // 3. Perbaikan Format Link Google Maps agar bisa diklik
                       href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`} 
                       target="_blank" 
                       rel="noreferrer"
-                      className="text-blue-600 underline"
+                      className="text-blue-600 underline hover:text-blue-800"
                     >
                       {item.latitude}, {item.longitude}
                     </a>
