@@ -11,16 +11,31 @@ module.exports = {
       },
       userId: {
         type: Sequelize.INTEGER,
-        allowNull: false
+        allowNull: false,
+        // Opsional: Tambahkan reference agar integritas data terjaga
+        references: {
+          model: 'Users',
+          key: 'id'
+        },
+        onUpdate: 'CASCADE',
+        onDelete: 'CASCADE'
       },
-      nama: {
-        type: Sequelize.STRING,
-        allowNull: false
-      },
+      // Kolom 'nama' DIHAPUS agar sesuai dengan Model dan Modul 9
+      
       checkIn: {
         allowNull: false,
         type: Sequelize.DATE
       },
+      // --- PENAMBAHAN KOLOM LOKASI ---
+      latitude: {
+        type: Sequelize.DECIMAL(10, 8),
+        allowNull: true
+      },
+      longitude: {
+        type: Sequelize.DECIMAL(11, 8),
+        allowNull: true
+      },
+      // -------------------------------
       checkOut: {
         allowNull: true, // checkOut bisa kosong saat pertama kali check-in
         type: Sequelize.DATE
@@ -39,4 +54,3 @@ module.exports = {
     await queryInterface.dropTable('Presensis');
   }
 };
-

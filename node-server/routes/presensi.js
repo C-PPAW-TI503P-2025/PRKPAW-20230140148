@@ -2,30 +2,30 @@ const express = require('express');
 const router = express.Router();
 const presensiController = require('../controllers/presensiController');
 const { authenticateToken } = require('../middleware/authenticateToken');
-router.use(authenticateToken);
 const { body } = require('express-validator');
+
+// Middleware Auth diterapkan untuk semua route di bawah ini
+router.use(authenticateToken);
+
 router.post('/check-in', presensiController.CheckIn);
 router.post('/check-out', presensiController.CheckOut);
 
-// BUAT ATURAN VALIDASI INI
+// Aturan Validasi
 const updateValidationRules = [
-  body('checkIn')
-    .optional() // Hanya validasi jika field ini ada
-    .isISO8601() // Pastikan formatnya adalah tanggal ISO8601 (format standar)
-    .withMessage('Format tanggal checkIn tidak valid. Gunakan format ISO8601 (YYYY-MM-DDTHH:mm:ss.sssZ).'),
-  
-  body('checkOut')
-    .optional()
-    .isISO8601()
-    .withMessage('Format tanggal checkOut tidak valid. Gunakan format ISO8601 (YYYY-MM-DDTHH:mm:ss.sssZ).'),
+  body('checkIn').optional().isISO8601().withMessage('Format tanggal checkIn salah.'),
+  body('checkOut').optional().isISO8601().withMessage('Format tanggal checkOut salah.'),
 ];
 
-// TERAPKAN ATURANNYA DI SINI
+// Terapkan validasi di sini
 router.put(
   "/:id",
-  updateValidationRules, // <-- TAMBAHKAN ATURAN INI
+  updateValidationRules, 
   presensiController.updatePresensi
 );
-router.put('/:id', presensiController.updatePresensi);
+
+// --- BAGIAN INI DIHAPUS SAJA (DUPLIKAT) ---
+// router.put('/:id', presensiController.updatePresensi); 
+
 router.delete('/:id', presensiController.deletePresensi);
+
 module.exports = router;

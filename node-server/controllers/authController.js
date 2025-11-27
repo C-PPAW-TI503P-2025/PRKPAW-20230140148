@@ -1,13 +1,18 @@
 const { User } = require('../models');
 const bcrypt = require('bcryptjs');
-const jwt = require('jsonwebtoken');	
+const jwt = require('jsonwebtoken');  
 const JWT_SECRET = 'INI_ADALAH_KUNCI_RAHASIA_ANDA_YANG_SANGAT_AMAN';
 
 exports.register = async (req, res) => {
   try {
-    const { nama, email, password, role } = req.body;
+    // 1. Tangkap 'nama' ATAU 'name' dari frontend
+    const { nama, name, email, password, role } = req.body;
 
-    if (!nama || !email || !password) {
+    // 2. Tentukan nama yang dipakai (jika 'nama' kosong, pakai 'name')
+    const namaUser = nama || name;
+
+    // 3. Validasi menggunakan 'namaUser'
+    if (!namaUser || !email || !password) {
       return res.status(400).json({ message: "Nama, email, dan password harus diisi" });
     }
 
@@ -17,7 +22,7 @@ exports.register = async (req, res) => {
 
     const hashedPassword = await bcrypt.hash(password, 10); 
     const newUser = await User.create({
-      nama,
+      nama: namaUser, // Simpan ke database sebagai 'nama'
       email,
       password: hashedPassword,
       role: role || 'mahasiswa' 

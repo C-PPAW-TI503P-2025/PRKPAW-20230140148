@@ -1,31 +1,37 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+// import { useNavigate } from 'react-router-dom'; // Tidak perlu ini jika pakai window.location
 
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // Hapus atau komentar ini
 
   const handleSubmit = async (e) => {
-    e.preventDefault(); 
-    setError(null); 
+    e.preventDefault();
+    setError(null);
 
     try {
-      
       const response = await axios.post('http://localhost:3001/api/auth/login', {
         email: email,
         password: password
       });
 
-      const token = response.data.token;
-      localStorage.setItem('token', token); 
-
-      navigate('/dashboard');
+      // Pastikan token diambil dengan benar
+      const token = response.data.token; 
+      
+      if (token) {
+        localStorage.setItem('token', token);
+        window.location.href = '/dashboard'; 
+        // ------------------------
+        
+      } else {
+        setError("Token tidak ditemukan dalam respons server.");
+      }
 
     } catch (err) {
-      // 4. Tangani error dari server
+      console.error("Login Error:", err); // Debugging di console
       setError(err.response ? err.response.data.message : 'Login gagal');
     }
   };
@@ -77,10 +83,11 @@ function LoginPage() {
           </button>
         </form>
         {error && (
-          <p className="text-red-600 text-sm mt-4 text-center">{error}</p>
+          <p className="text-red-600 text-sm mt-4 text-center bg-red-100 p-2 rounded border border-red-400">{error}</p>
         )}
       </div>
     </div>
   );
 }
+
 export default LoginPage;
