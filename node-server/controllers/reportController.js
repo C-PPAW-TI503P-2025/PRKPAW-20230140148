@@ -8,6 +8,7 @@ exports.getDailyReport = async (req, res) => {
     const { nama } = req.query;
 
     let options = {
+      attributes: ['id', 'userId', 'checkIn', 'checkOut', 'latitude', 'longitude', 'buktiFoto'],
       include: [
         {
           model: User,

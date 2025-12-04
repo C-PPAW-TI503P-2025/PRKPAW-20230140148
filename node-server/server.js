@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const app = express();
 const port = 3001; // Port harus sama dengan yang dipanggil di React
-
+const path = require('path'); 
 // --- MIDDLEWARE ---
 app.use(cors());
 app.use(express.json()); // Supaya bisa baca JSON dari React
@@ -16,7 +16,9 @@ try {
   // --- DAFTARKAN ROUTE ---
   // 1. Route Auth (Login/Register) -> Mengarah ke routes/auth.js
   app.use('/api/auth', authRoute);
+  
 
+  app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
   // 2. Route Presensi (Check-in/Out) -> Mengarah ke routes/presensi.js
   app.use('/api/presensi', presensiRoute);
 

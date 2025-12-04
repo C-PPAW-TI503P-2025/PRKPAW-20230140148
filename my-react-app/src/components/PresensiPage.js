@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
 import L from "leaflet";
+import Webcam from "react-webcam"; // Diperlukan untuk mengakses kamera
 import "leaflet/dist/leaflet.css";
 
 // Fix untuk marker icon di Leaflet
@@ -18,12 +19,25 @@ function AttendancePage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [coords, setCoords] = useState(null); // {lat, lng}
+  
+  // State dan Ref untuk Kamera (sesuai modul)
+  const [image, setImage] = useState(null); // Menyimpan data gambar (Base64 string)
+  const webcamRef = useRef(null);
+  
   const navigate = useNavigate();
 
   const getToken = () => localStorage.getItem("token");
 
+  // Fungsi untuk mengambil foto dari webcam (sesuai modul)
+  const capture = useCallback(() => {
+    // getScreenshot() mengembalikan gambar sebagai Base64 string
+    const imageSrc = webcamRef.current.getScreenshot();
+    setImage(imageSrc);
+  }, [webcamRef]);
+  
   // Fungsi untuk mendapatkan lokasi pengguna
   const getLocation = () => {
+    // ... (kode getLocation tetap sama) ...
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
@@ -47,12 +61,13 @@ function AttendancePage() {
     getLocation();
   }, []);
 
+  // UPDATE: Fungsi Check-in untuk mengirim FormData (lokasi + foto)
   const handleCheckIn = async () => {
     setError("");
     setMessage("");
-    
-    if (!coords) {
-      setError("Lokasi belum didapatkan. Mohon izinkan akses lokasi.");
+
+    if (!coords || !image) { // Tambahkan validasi foto
+      setError("Lokasi dan Foto wajib ada!");
       return;
     }
 
@@ -60,26 +75,37 @@ function AttendancePage() {
     const token = getToken();
     if (!token) {
       navigate("/login");
+      setLoading(false);
       return;
     }
-
+    
     try {
+      // 1. Konversi Base64 (image) ke Blob (sesuai modul)
+      const blob = await (await fetch(image)).blob();
+
+      // 2. Buat FormData (sesuai modul)
+      const formData = new FormData();
+      formData.append('latitude', coords.lat);
+      formData.append('longitude', coords.lng);
+      // 'image' harus cocok dengan nama field yang diterima Multer di backend (upload.single('image'))
+      formData.append('image', blob, 'selfie.jpg'); 
+
       const config = {
         headers: {
           Authorization: `Bearer ${token}`,
+          // Penting: Browser akan otomatis menambahkan 'Content-Type: multipart/form-data'
+          // saat mengirim objek FormData, jadi tidak perlu diset manual.
         },
       };
 
       const response = await axios.post(
         "http://localhost:3001/api/presensi/check-in",
-        {
-          latitude: coords.lat,
-          longitude: coords.lng,
-        },
+        formData, // Kirim FormData, bukan objek JSON
         config
       );
 
       setMessage(response.data.message || "Check-in berhasil");
+      setImage(null); // Reset foto setelah berhasil check-in
     } catch (err) {
       setError(
         err.response && err.response.data && err.response.data.message
@@ -91,6 +117,7 @@ function AttendancePage() {
     }
   };
 
+  // Catatan: handleCheckOut tidak memerlukan foto, jadi tidak perlu diubah ke FormData
   const handleCheckOut = async () => {
     setError("");
     setMessage("");
@@ -104,6 +131,7 @@ function AttendancePage() {
     const token = getToken();
     if (!token) {
       navigate("/login");
+      setLoading(false);
       return;
     }
 
@@ -113,7 +141,8 @@ function AttendancePage() {
           Authorization: `Bearer ${token}`,
         },
       };
-
+      
+      // Mengirim JSON (sesuai sebelumnya) karena tidak ada file yang diunggah
       const response = await axios.post(
         "http://localhost:3001/api/presensi/check-out",
         {
@@ -141,6 +170,7 @@ function AttendancePage() {
         <h2 className="text-3xl font-bold mb-6 text-gray-800">Lakukan Presensi</h2>
 
         {/* Peta Lokasi */}
+        {/* ... (kode Peta Lokasi tetap sama) ... */}
         {coords && (
           <div className="mb-6 border rounded-lg overflow-hidden">
             <MapContainer
@@ -180,13 +210,41 @@ function AttendancePage() {
         {error && (
           <p className="text-red-600 mb-4 p-3 bg-red-50 rounded">{error}</p>
         )}
+        
+        {/* TAMBAHAN: Tampilan Kamera (sesuai modul) */}
+        <div className="my-4 border rounded-lg overflow-hidden bg-black">
+          {image ? (
+            <img src={image} alt="Selfie" className="w-full" />
+          ) : (
+            <Webcam
+              audio={false}
+              ref={webcamRef}
+              screenshotFormat="image/jpeg"
+              className="w-full"
+            />
+          )}
+        </div>
+        
+        {/* TAMBAHAN: Tombol Capture/Retake (sesuai modul) */}
+        <div className="mb-4">
+          {!image ? (
+            <button onClick={capture} className="bg-blue-500 text-white px-4 py-2 rounded w-full">
+              Ambil Foto 📸
+            </button>
+          ) : (
+            <button onClick={() => setImage(null)} className="bg-gray-500 text-white px-4 py-2 rounded w-full">
+              Foto Ulang 🔄
+            </button>
+          )}
+        </div>
 
         <div className="flex space-x-4">
           <button
             onClick={handleCheckIn}
-            disabled={loading || !coords}
+            // Disabled jika loading, lokasi belum ada, ATAU foto belum diambil
+            disabled={loading || !coords || !image} 
             className={`w-full py-3 px-4 font-semibold rounded-md shadow-sm transition ${
-              loading || !coords
+              loading || !coords || !image
                 ? "bg-gray-400 cursor-not-allowed"
                 : "bg-green-600 text-white hover:bg-green-700"
             }`}

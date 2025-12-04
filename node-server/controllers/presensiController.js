@@ -1,14 +1,49 @@
-// 1. Ganti sumber data dari array ke model Sequelize
-const { Presensi, User } = require("../models"); 
+// presensiController.js
+
+// 1. Import Multer dan Path
+const multer = require('multer');
+const path = require('path');
+const { Presensi, User } = require("../models");
 const { format } = require("date-fns-tz");
 const { validationResult } = require('express-validator');
 const timeZone = "Asia/Jakarta";
 
+// --- KONFIGURASI MULTER (sesuai modul) ---
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    // Simpan file ke folder 'uploads/'
+    cb(null, 'uploads/');
+  },
+  filename: (req, file, cb) => {
+    // Format nama file: userId-timestamp.ext (misal: 1-1700000000000.jpg)
+    // req.user.id berasal dari middleware autentikasi sebelumnya
+    cb(null, `${req.user.id}-${Date.now()}${path.extname(file.originalname)}`);
+  }
+});
+
+const fileFilter = (req, file, cb) => {
+  // Hanya izinkan file gambar
+  if (file.mimetype.startsWith('image/')) {
+    cb(null, true);
+  } else {
+    cb(new Error('Hanya file gambar yang diperbolehkan!'), false);
+  }
+};
+
+// Middleware export untuk digunakan di router (misal: presensiController.upload.single('image'))
+exports.upload = multer({ storage: storage, fileFilter: fileFilter });
+// --- END KONFIGURASI MULTER ---
+
+
 exports.CheckIn = async (req, res) => {
   try {
     const { id: userId, nama: userName } = req.user;
-    const { latitude, longitude } = req.body; 
-    
+
+    // 2. Ambil data lokasi dari req.body dan data foto dari req.file
+    const { latitude, longitude } = req.body;
+    // Konversi backslash ke forward slash untuk kompatibilitas URL
+    const buktiFoto = req.file ? req.file.path.replace(/\\/g, '/') : null;
+
     const waktuSekarang = new Date();
 
     const existingRecord = await Presensi.findOne({
@@ -21,11 +56,13 @@ exports.CheckIn = async (req, res) => {
         .json({ message: "Anda sudah melakukan check-in hari ini." });
     }
 
+    // 3. Simpan buktiFoto ke database
     const newRecord = await Presensi.create({
       userId: userId,
       checkIn: waktuSekarang,
       latitude: latitude,
-      longitude: longitude 
+      longitude: longitude,
+      buktiFoto: buktiFoto // Simpan path foto ke kolom baru [cite: 98]
     });
 
     const formattedData = {
@@ -33,9 +70,9 @@ exports.CheckIn = async (req, res) => {
       nama: userName,
       checkIn: format(newRecord.checkIn, "yyyy-MM-dd HH:mm:ssXXX", { timeZone }),
       checkOut: null,
-      // --- UPDATE: Latitude & Longitude muncul di response CheckIn ---
-      latitude: newRecord.latitude, 
-      longitude: newRecord.longitude
+      latitude: newRecord.latitude,
+      longitude: newRecord.longitude,
+      buktiFoto: newRecord.buktiFoto // Tambahkan buktiFoto ke response
     };
 
     res.status(201).json({
@@ -54,6 +91,7 @@ exports.CheckIn = async (req, res) => {
   }
 };
 
+// CheckOut tidak perlu diubah karena tidak ada pengunggahan file
 exports.CheckOut = async (req, res) => {
   try {
     const { id: userId, nama: userName } = req.user;
@@ -74,16 +112,16 @@ exports.CheckOut = async (req, res) => {
 
     const formattedData = {
       userId: recordToUpdate.userId,
-      nama: userName, 
+      nama: userName,
       checkIn: format(recordToUpdate.checkIn, "yyyy-MM-dd HH:mm:ssXXX", {
         timeZone,
       }),
       checkOut: format(recordToUpdate.checkOut, "yyyy-MM-dd HH:mm:ssXXX", {
         timeZone,
       }),
-      // --- UPDATE: Menambahkan Latitude & Longitude agar muncul saat CheckOut ---
       latitude: recordToUpdate.latitude,
-      longitude: recordToUpdate.longitude
+      longitude: recordToUpdate.longitude,
+      buktiFoto: recordToUpdate.buktiFoto // Tambahkan buktiFoto ke response CheckOut
     };
 
     res.json({
@@ -102,9 +140,11 @@ exports.CheckOut = async (req, res) => {
   }
 };
 
+// Fungsi lain (deletePresensi dan updatePresensi) tidak memerlukan Multer atau buktiFoto, 
+// jadi tidak perlu diubah.
 exports.deletePresensi = async (req, res) => {
   try {
-    const { id: userId } = req.user; 
+    const { id: userId } = req.user;
     const presensiId = req.params.id;
     const recordToDelete = await Presensi.findByPk(presensiId);
 
@@ -113,7 +153,7 @@ exports.deletePresensi = async (req, res) => {
         .status(404)
         .json({ message: "Data Presensi Telah Dihapus." });
     }
-    
+
     if (recordToDelete.userId !== userId) {
       return res
         .status(403)
@@ -139,7 +179,7 @@ exports.updatePresensi = async (req, res) => {
 
   try {
     const presensiId = req.params.id;
-    const { checkIn, checkOut } = req.body; 
+    const { checkIn, checkOut } = req.body;
 
     if (checkIn === undefined && checkOut === undefined) {
       return res.status(400).json({
@@ -156,7 +196,7 @@ exports.updatePresensi = async (req, res) => {
 
     recordToUpdate.checkIn = checkIn || recordToUpdate.checkIn;
     recordToUpdate.checkOut = checkOut || recordToUpdate.checkOut;
-    
+
     await recordToUpdate.save();
 
     res.json({
